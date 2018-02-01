@@ -1,9 +1,5 @@
 Bootstrap: docker
-From: willprice/nvidia-ffmpeg:latest
-
-%post
-    ldconfig
+From: willprice/furnari-flow:latest
 
 %help
-    Hardware Accelerated build of FFmpeg
-
+    Compute Optical flow from frames using OpenCV
