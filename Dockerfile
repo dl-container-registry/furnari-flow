@@ -1,4 +1,5 @@
 FROM furnari/compute_flow
+LABEL maintainer="will.price94@gmail.com"
 
 VOLUME /input
 VOLUME /output
