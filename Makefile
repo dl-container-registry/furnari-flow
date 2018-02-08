@@ -1,6 +1,6 @@
 SHELL:=bash
 CONTAINER_NAME:=willprice/furnari-flow
-SINGULARITY_NAME:=furnari-flow.img
+SINGULARITY_NAME:=furnari-flow.simg
 TAG:=
 
 .PHONY: all

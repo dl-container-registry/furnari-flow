@@ -1,12 +1,11 @@
 #!/usr/bin/env bash
 
-COMPUTE_FLOW=/bin/compute_flow 
+: ${COMPUTE_FLOW:=/bin/compute_flow}
 
 if [[ $# -lt 1 || $1 = '-h' || $1 = '--help' ]]; then
     echo "USAGE: <frame_pattern> [<compute_flow_arg>]+"
     echo "Example: $0 frame%06d.jpg"
-    echo 
-    echo 
+    echo
     "$COMPUTE_FLOW" --help
     exit 1
 fi
