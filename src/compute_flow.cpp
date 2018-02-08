@@ -192,7 +192,6 @@ int main( int argc, char *argv[] )
     // cout << "Queue full" << endl;
 
     while (!currentFrame.empty()){
-        cap >> currentFrame;
         resizedFrame = cv::Mat(Size(width,height),CV_8UC3);
         cv::resize(currentFrame,resizedFrame,cv::Size(width,height),0,0,INTER_CUBIC);
 
@@ -288,6 +287,7 @@ int main( int argc, char *argv[] )
         for (int iskip = 0; iskip<stride-1; iskip++) {
             cap >> currentFrame;
         }
+        cap >> currentFrame;
     }
 
     cout << endl;
