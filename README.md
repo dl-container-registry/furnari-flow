@@ -1,21 +1,27 @@
 GPU based optical flow extraction from videos
 =================================================
-Forked from https://github.com/feichtenhofer/gpu_flow
+Forked from https://github.com/feichtenhofer/gpu_flow by Antonino Furnari
+
+[![Build Status](https://travis-ci.org/dl-container-registry/furnari-flow.svg?branch=master)](https://travis-ci.org/dl-container-registry/furnari-flow)
+[![Docker Hub](https://img.shields.io/badge/hosted-dockerhub-22b8eb.svg)](https://hub.docker.com/r/willprice/furnari-flow/)
+[![Singularity Hub](https://www.singularity-hub.org/static/img/hosted-singularity--hub-%23e32929.svg)](https://singularity-hub.org/collections/552)
 
 ### Features
-The tool allows to extract optical flow from video. By default, the tool resizes the input video so that its height matches 256 pixels and aspect ratio remains the same. The tool creates a video where x and y optical flow images are stored side by side. Optical flow is obtained by clipping large displacement. Other options are available modifying the source code (see https://github.com/feichtenhofer/gpu_flow).
-
-Usage:
-    ./compute_flow [OPTION] videofile.avi
-Output:
-    videofile_flow.avi
+The tool allows to extract optical flow from video. By default, the tool resizes
+the input video so that its height matches 256 pixels and aspect ratio remains
+the same. The tool creates a video where x and y optical flow images are stored
+side by side. Optical flow is obtained by clipping large displacement. Other
+options are available modifying the source code (see
+https://github.com/feichtenhofer/gpu_flow).
 
 ### Dependencies:
  * [OpenCV 2.4] (http://opencv.org/downloads.html)
  * [cmake] (https://cmake.org/)
 
 ### Installation
-First, build opencv with gpu support. To do so, download opencv 2.4.x sources from https://opencv.org/releases.html. Unzip the downloaded archive, then enter the opencv folder and issue the following commands:
+First, build opencv with gpu support. To do so, download opencv 2.4.x sources
+from https://opencv.org/releases.html. Unzip the downloaded archive, then enter
+the opencv folder and issue the following commands:
 
  * `mkdir build`
  * `cd build`
