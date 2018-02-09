@@ -143,6 +143,9 @@ int main( int argc, char *argv[] )
         cout << "Example: compute_flow P01_01 img_%07d.jpg flow_%s_%07d.jpg [options]" << endl;
         return 0;
     }
+    int gpuCounts = cv::gpu::getCudaEnabledDeviceCount();
+    cout << "Number of GPUs present " << gpuCounts << endl;
+
     cv::gpu::setDevice(gpuID);
     cv::gpu::printShortCudaDeviceInfo(cv::gpu::getDevice());
 
