@@ -15,8 +15,8 @@ options are available modifying the source code (see
 https://github.com/feichtenhofer/gpu_flow).
 
 ### Dependencies:
- * [OpenCV 2.4] (http://opencv.org/downloads.html)
- * [cmake] (https://cmake.org/)
+ * [OpenCV 2.4](http://opencv.org/downloads.html)
+ * [cmake](https://cmake.org/)
 
 ### Installation
 First, build opencv with gpu support. To do so, download opencv 2.4.x sources
