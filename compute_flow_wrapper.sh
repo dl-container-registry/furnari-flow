@@ -26,9 +26,12 @@ rm "$IN/.flow" || exit 1
 
 "$COMPUTE_FLOW" "$IN" "$FRAME_PATTERN" "$OF_PATTERN" $@
 
+declare -A dim_map
+dim_map[x]=u
+dim_map[y]=v
 for dim in x y; do
     for f in "$IN/flow_${dim}_"*.jpg; do
-        mv "$f" "$OUT/u/"
+        mv "$f" "$OUT/${dim_map[$dim]}/"
     done
 done
 
