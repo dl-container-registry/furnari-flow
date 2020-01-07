@@ -1,11 +1,5 @@
 cmake_minimum_required(VERSION 2.4)
 
-# Tell CMake to run moc when necessary:
-set(CMAKE_AUTOMOC ON)
-# As moc files are generated in the binary dir, tell CMake
-# to always look for includes there:
-set(CMAKE_INCLUDE_CURRENT_DIR ON)
-
 # OpenCV Config
 find_package( OpenCV REQUIRED )
 
