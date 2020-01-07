@@ -1,1 +1,3 @@
 *.simg
+/.idea
+/cmake-build-debug
