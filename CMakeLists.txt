@@ -17,7 +17,7 @@ message("-- OPENCV libs:   " ${OpenCV_LIBS} )
 INCLUDE_DIRECTORIES(${OpenCV_INCLUDE_DIRS})
 LINK_DIRECTORIES(${OpenCV_LIB_DIR})
 
-ADD_DEFINITIONS(-DDEBUG -ggdb -O3 -Wall -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -fbranch-probabilities)
+ADD_DEFINITIONS(-ggdb -O3 -Wall -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -fbranch-probabilities)
 
 if(COMMAND cmake_policy)
    cmake_policy(SET CMP0003 NEW)

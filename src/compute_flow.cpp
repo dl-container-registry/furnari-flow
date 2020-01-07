@@ -45,6 +45,13 @@ const int inner_iterations_ = 10;
 const int outer_iterations_ = 77;
 const int solver_iterations_ = 10;
 
+
+#ifdef DEBUG
+#define DEBUG_MSG(msg) do { std::cout << msg << std::endl; } while (0)
+#else
+#define DEBUG_MSG(msg)
+#endif
+
 void converFlowMat(Mat& flowIn, Mat& flowOut,float min_range_, float max_range_)
 {
     float value = 0.0f;
@@ -155,6 +162,7 @@ int main( int argc, char *argv[] )
     std::cout << "Processing folder " << input_folder << std::endl;
 
     std::queue<cv::Mat> framequeue;
+    std::queue<int> frame_index_queue;
 
     VideoCapture cap; //open video
     try {
@@ -164,7 +172,6 @@ int main( int argc, char *argv[] )
     }
 
     int nframes = 0, width = 0, height = 0;
-    float factor = 0;
 
     if( cap.isOpened() == 0 ) {
         cout << "Problem opening input file"<<endl;
@@ -175,10 +182,12 @@ int main( int argc, char *argv[] )
     //NOW THE VIDEO IS OPEN AND WE CAN START GRABBING FRAMES
 
     //fill the frame queue
+    int frame_index = -1;
     for (int ii=0; ii<dilation; ii++) {
         cap >> currentFrame;
+        frame_index++;
 
-        factor = std::max<float>(MIN_SZ/currentFrame.cols, MIN_SZ/currentFrame.rows);
+        float factor = std::max<float>(MIN_SZ/currentFrame.cols, MIN_SZ/currentFrame.rows);
 
         width = std::floor(currentFrame.cols*factor);
         width -= width%2;
@@ -190,6 +199,7 @@ int main( int argc, char *argv[] )
         cv::resize(currentFrame,resizedFrame,cv::Size(width,height),0,0,INTER_CUBIC);
 
         framequeue.push(resizedFrame.clone());
+        frame_index_queue.push(frame_index);
     }
 
     // cout << "Queue full" << endl;
@@ -199,10 +209,13 @@ int main( int argc, char *argv[] )
         cv::resize(currentFrame,resizedFrame,cv::Size(width,height),0,0,INTER_CUBIC);
 
         framequeue.push(resizedFrame.clone());
+        frame_index_queue.push(frame_index);
 
         //extract frame 0 from the front of the queue and pop
         frame0_rgb = framequeue.front().clone();
         framequeue.pop();
+        int frame0_index = frame_index_queue.front();
+        frame_index_queue.pop();
 
         // Allocate memory for the images
         //frame0_rgb = cv::Mat(Size(width,height),CV_8UC3);
@@ -220,6 +233,7 @@ int main( int argc, char *argv[] )
         cvtColor(frame0_rgb,frame0,CV_BGR2GRAY);
         frame0.convertTo(frame0_32,CV_32FC1,1.0/255.0,0);
 
+        DEBUG_MSG("(" << frame0_index  << ", " << frame_index << ")");
         switch(type){
             case 0:
                 frame1GPU.upload(frame1_32);
@@ -279,7 +293,9 @@ int main( int argc, char *argv[] )
         frame_to_write++;
 
         //fout.write(comb2);
+#ifndef DEBUG
         cout << "." << flush;
+#endif
 
         //frame1_rgb.copyTo(frame0_rgb);
         //cvtColor(frame0_rgb,frame0,CV_BGR2GRAY);
@@ -289,8 +305,10 @@ int main( int argc, char *argv[] )
         nframes++;
         for (int iskip = 0; iskip<stride-1; iskip++) {
             cap >> currentFrame;
+            frame_index++;
         }
         cap >> currentFrame;
+        frame_index++;
     }
 
     cout << endl;
