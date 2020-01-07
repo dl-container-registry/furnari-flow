@@ -24,6 +24,7 @@ RUN mkdir build && \
 RUN cp build/compute_flow /bin
 
 ADD compute_flow_wrapper.sh /bin/
+RUN chmod +x /bin/compute_flow_wrapper.sh
 WORKDIR /input
 ENTRYPOINT ["/bin/compute_flow_wrapper.sh"]
 CMD ["frame_%010d.jpg"]
