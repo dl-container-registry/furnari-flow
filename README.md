@@ -32,6 +32,7 @@ We support running via docker and singularity.
       --rm \
       --mount "type=bind,source=$PWD/my_video,target=/input" \
       --mount "type=bind,source=$PWD/my_video_flow,target=/output" \
+      --mount "type=bind,source=$HOME/.nv,target=/cache/nv" \
       willprice/furnari-flow \
       img_%06d.jpg
   $ ls my_video_flow
