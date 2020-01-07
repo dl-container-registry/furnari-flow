@@ -6,7 +6,7 @@ RUN mkdir -p /src /input /output
 
 VOLUME /input
 VOLUME /output
-
+ENV CUDA_CACHE_PATH=/cache/nv
 ADD . /src/compute_flow
 WORKDIR /src/compute_flow
 RUN mkdir build && \
