@@ -11,7 +11,6 @@ VOLUME /output
 # JIT-ed PTX code is stored in ~/.nv/cache by default, but we can override that with CUDA_CACHE_PATH. To make the JITed
 # kernels persistent across container invocations we create a /cache volume to store these files. It is ideal to use a
 # quick block device (e.g. SSD) as the backing store for this cache.
-VOLUME /cache
 ENV CUDA_CACHE_PATH /cache/nv
 
 ADD . /src/compute_flow
