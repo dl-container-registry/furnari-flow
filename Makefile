@@ -1,7 +1,7 @@
 SHELL:=bash
 CONTAINER_NAME:=willprice/furnari-flow
 SINGULARITY_NAME:=furnari-flow.simg
-TAG:=latest
+TAG:=refactor
 SRC:=src/compute_flow.cpp CMakeLists.txt compute_flow_wrapper.sh
 
 .PHONY: all
@@ -13,7 +13,7 @@ build:
 
 .PHONY: push
 push:
-	docker push $(CONTAINER_NAME):%(TAG)
+	docker push $(CONTAINER_NAME):$(TAG)
 
 .PHONY: singularity
 singularity: $(SINGULARITY_NAME)

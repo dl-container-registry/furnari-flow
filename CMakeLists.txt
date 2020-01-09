@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 2.4)
+project(furnari_flow)
 
 # OpenCV Config
 find_package( OpenCV REQUIRED )

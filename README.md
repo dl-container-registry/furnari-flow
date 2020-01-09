@@ -6,6 +6,16 @@ Forked from https://github.com/feichtenhofer/gpu_flow by Antonino Furnari
 [![Docker Hub](https://img.shields.io/badge/hosted-dockerhub-22b8eb.svg)](https://hub.docker.com/r/willprice/furnari-flow/)
 [![Singularity Hub](https://www.singularity-hub.org/static/img/hosted-singularity--hub-%23e32929.svg)](https://singularity-hub.org/collections/575)
 
+## News
+
+### 2020-01-09
+
+The semantics of the dilation parameter have changed to allow finer grained configuration. Previously optical flow was 
+computed between frames I_{st} and I_{s(t+d)} where s is the stride and d the dilation. The code now computes flow
+between I_{st} and I_{st+d}--this makes the stride and dilation parameters completely independent which is more intuitive.
+If you wish to continue using the old code then use the docker image tagged with `v1`. All subsequent images and the 
+`latest` tag will adopt the new behaviour described above.
+
 
 ## Usage
 
@@ -15,23 +25,24 @@ We support running via docker and singularity.
 
 * Ensure you're running
   [`nvidia-docker`](https://github.com/NVIDIA/nvidia-docker) as this software is
-  GPU accelerated.
+  GPU accelerated. If using docker 19.03 or above then you can use the native docker nvidia GPU support.
 * Pull the docker image: 
-  ```
+  ```console
   $ docker pull willprice/furnari-flow
   ```
 * Dump out frames from the video you wish to compute flow for:
-  ```sh
+  ```console
   $ mkdir my_video; ffmpeg -i my_video.mp4 my_video/img_%06d.jpg
   ```
 * Compute the flow using `furnari-flow`:
-  ```sh
+  ```console
   $ mkdir my_video_flow
   $ docker 
       --runtime=nvidia \
       --rm \
       --mount "type=bind,source=$PWD/my_video,target=/input" \
       --mount "type=bind,source=$PWD/my_video_flow,target=/output" \
+      --mount "type=bind,source=$HOME/.nv,target=/cache/nv" \
       willprice/furnari-flow \
       img_%06d.jpg
   $ ls my_video_flow
@@ -89,8 +100,9 @@ the opencv folder and issue the following commands:
 
  * `mkdir build`
  * `cd build`
- * `cmake -DCUDA_USE_STATIC_CUDA_RUNTIME=OFF ..`
- * `make`
+ * `cmake -DCUDA_USE_STATIC_CUDA_RUNTIME=OFF ..` (inspect the [`Dockerfile`](./Dockerfile) for further flags that might 
+   be of use)
+ * `make -j $(nproc)`
 
 Then clone the current repository and enter the `compute_flow_video` folder. Type:
 
@@ -98,5 +110,5 @@ Then clone the current repository and enter the `compute_flow_video` folder. Typ
  * `mkdir build`
  * `cd build`
  * `cmake -DCUDA_USE_STATIC_CUDA_RUNTIME=OFF ..`
- * `make`
+ * `make -j $(nproc)`
 
