@@ -6,6 +6,16 @@ Forked from https://github.com/feichtenhofer/gpu_flow by Antonino Furnari
 [![Docker Hub](https://img.shields.io/badge/hosted-dockerhub-22b8eb.svg)](https://hub.docker.com/r/willprice/furnari-flow/)
 [![Singularity Hub](https://www.singularity-hub.org/static/img/hosted-singularity--hub-%23e32929.svg)](https://singularity-hub.org/collections/575)
 
+## News
+
+### 2020-01-09
+
+The semantics of the dilation parameter have changed to allow finer grained configuration. Previously optical flow was 
+computed between frames I_{st} and I_{s(t+d)} where s is the stride and d the dilation. The code now computes flow
+between I_{st} and I_{st+d}--this makes the stride and dilation parameters completely independent which is more intuitive.
+If you wish to continue using the old code then use the docker image tagged with `v1`. All subsequent images and the 
+`latest` tag will adopt the new behaviour described above.
+
 
 ## Usage
 
