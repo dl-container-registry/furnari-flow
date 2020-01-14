@@ -1,7 +1,7 @@
 SHELL:=bash
 CONTAINER_NAME:=willprice/furnari-flow
 SINGULARITY_NAME:=furnari-flow.simg
-TAG:=refactor
+TAG:=latest
 SRC:=src/compute_flow.cpp CMakeLists.txt compute_flow_wrapper.sh
 
 .PHONY: all
