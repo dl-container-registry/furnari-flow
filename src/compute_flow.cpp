@@ -35,14 +35,6 @@ using namespace cv::gpu;
 float MIN_SZ = 256;
 float bound = 20;
 
-// Global variables for gpu::BroxOpticalFlow
-const float alpha_ = 0.197;
-const float gamma_ = 50;
-const float scale_factor_ = 0.8;
-const int inner_iterations_ = 10;
-const int outer_iterations_ = 77;
-const int solver_iterations_ = 10;
-
 #ifdef DEBUG
 #define DEBUG_MSG(msg) do { std::cout << msg << std::endl; } while (0)
 #else
@@ -76,13 +68,26 @@ int main( int argc, char *argv[] )
         dilation = 1;
 
     const char* keys = {
-                "{ h  | help     | false | print help message }"
-                "{ g  | gpuID    |  0    | use this gpu}"
-                "{ f  | type     |  1    | use this flow method [0:Brox, 1:TVL1]}"
-                "{ s  | stride   |  1    | temporal stride (this subsamples the video)}"
-                "{ d  | dilation |  1    | temporal dilation (1: use neighbouring frames, 2: skip one)}"
-                "{ b  | bound    |  20   | maximum optical flow for clipping}"
-                "{ z  | size     |  256  | minimum output size}"
+                "{ h                    | help                   | false | print help message }"
+                "{ g                    | gpuID                  |  0    | use this gpu}"
+                "{ f                    | type                   |  1    | use this flow method [0:Brox, 1:TVL1]}"
+                "{ s                    | stride                 |  1    | temporal stride (this subsamples the video)}"
+                "{ d                    | dilation               |  1    | temporal dilation (1: use neighbouring frames, 2: skip one)}"
+                "{ b                    | bound                  |  20   | maximum optical flow for clipping}"
+                "{ z                    | size                   |  256  | minimum output size}"
+                "{ tvl1_epilson         | tvl1-epsilon           | 0.01  | TVL1 epsilon parameter}"
+                "{ tvl1_lambda          | tvl1-lambda            | 0.15  | TVL1 lambda parameter}"
+                "{ tvl1_tau             | tvl1-tau               | 0.25  | TVL1 tau parameter}"
+                "{ tvl1_theta           | tvl1-theta             | 0.3   | TVL1 tau parameter}"
+                "{ tvl1_iterations      | tvl1-iterations        | 300   | TVL1 number of iterations}"
+                "{ tvl1_nscales         | tvl1-nscales           | 5     | TVL1 number of scales}"
+                "{ tvl1_warps           | tvl1-warps             | 5     | TVL1 number of warps}"
+                "{ brox_alpha           | brox-alpha             | 0.197 | Brox alpha parameter}"
+                "{ brox_gamma           | brox-gamma             | 50    | Brox gamma parameter}"
+                "{ brox_scale_factor    | brox-scale-factor      | 0.8   | Brox scale factor parameter}"
+                "{ brox_inner_iters     | brox-inner-iterations  | 10    | Brox number of inner iterations}"
+                "{ brox_outer_iters     | brox-outer-iterations  | 77    | Brox number of outer iterations}"
+                "{ brox_solver_iters    | brox-solver-iterations | 10    | Brox number of solver iterations}"
     };
 
     CommandLineParser cmd(argc, argv, keys);
@@ -121,8 +126,45 @@ int main( int argc, char *argv[] )
     cv::gpu::setDevice(gpuID);
     cv::gpu::printShortCudaDeviceInfo(cv::gpu::getDevice());
 
-    cv::gpu::BroxOpticalFlow dflow(alpha_,gamma_,scale_factor_,inner_iterations_,outer_iterations_,solver_iterations_);
+    cv::gpu::BroxOpticalFlow dflow(
+            cmd.get<float>("brox-alpha"),
+            cmd.get<int>("brox-gamma"),
+            cmd.get<float>("brox-scale-factor"),
+            cmd.get<int>("brox-inner-iterations"),
+            cmd.get<int>("brox-outer-iterations"),
+            cmd.get<int>("brox-solver-iterations")
+    );
     cv::gpu::OpticalFlowDual_TVL1_GPU alg_tvl1;
+
+    alg_tvl1.epsilon = cmd.get<float>("tvl1-epsilon");
+    alg_tvl1.lambda = cmd.get<float>("tvl1-lambda");
+    alg_tvl1.tau = cmd.get<float>("tvl1-tau");
+    alg_tvl1.theta = cmd.get<float>("tvl1-theta");
+    alg_tvl1.iterations = cmd.get<int>("tvl1-iterations");
+    alg_tvl1.nscales = cmd.get<int>("tvl1-nscales");
+    alg_tvl1.warps = cmd.get<int>("tvl1-warps");
+
+    switch (type) {
+        case 0:
+            std::cout << "Brox parameters" << std::endl;
+            std::cout << "- alpha: " << dflow.alpha << std::endl;
+            std::cout << "- gamma: " << dflow.gamma << std::endl;
+            std::cout << "- scale_factor: " << dflow.scale_factor << std::endl;
+            std::cout << "- inner_iterations: " << dflow.inner_iterations << std::endl;
+            std::cout << "- outer_iterations: " << dflow.outer_iterations << std::endl;
+            std::cout << "- solver_iterations: " << dflow.solver_iterations << std::endl;
+            break;
+        case 1:
+            std::cout << "TVL1 parameters" << std::endl;
+            std::cout << "- epsilon: " << alg_tvl1.epsilon << std::endl;
+            std::cout << "- lambda: " << alg_tvl1.lambda << std::endl;
+            std::cout << "- tau: " << alg_tvl1.tau << std::endl;
+            std::cout << "- theta: " << alg_tvl1.theta << std::endl;
+            std::cout << "- iterations: " << alg_tvl1.iterations << std::endl;
+            std::cout << "- nscales: " << alg_tvl1.nscales << std::endl;
+            std::cout << "- warps: " << alg_tvl1.warps << std::endl;
+            break;
+    }
 
 
     std::queue<cv::Mat> frame_queue;
