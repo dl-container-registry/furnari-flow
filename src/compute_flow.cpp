@@ -55,7 +55,6 @@ static void convertFlowToImage(const Mat &flow_in, Mat &flow_out,
 
 int main( int argc, char *argv[] )
 {
-    GpuMat frame0GPU, frame1GPU, uGPU, vGPU;
     Mat current_frame, resized_frame;
     Mat frame0_rgb_, frame1_rgb_, frame0_rgb, frame1_rgb, frame0, frame1, rgb_out;
     Mat frame0_32, frame1_32, imgU, imgV;
@@ -82,6 +81,7 @@ int main( int argc, char *argv[] )
                 "{ tvl1_iterations      | tvl1-iterations        | 300   | TVL1 number of iterations}"
                 "{ tvl1_nscales         | tvl1-nscales           | 5     | TVL1 number of scales}"
                 "{ tvl1_warps           | tvl1-warps             | 5     | TVL1 number of warps}"
+                "{ tvl1_use_initial_flow| tvl1-use-initial-flow  | false | Whether to reuse flow fields between frames}"
                 "{ brox_alpha           | brox-alpha             | 0.197 | Brox alpha parameter}"
                 "{ brox_gamma           | brox-gamma             | 50    | Brox gamma parameter}"
                 "{ brox_scale_factor    | brox-scale-factor      | 0.8   | Brox scale factor parameter}"
@@ -143,6 +143,7 @@ int main( int argc, char *argv[] )
     alg_tvl1.iterations = cmd.get<int>("tvl1-iterations");
     alg_tvl1.nscales = cmd.get<int>("tvl1-nscales");
     alg_tvl1.warps = cmd.get<int>("tvl1-warps");
+    alg_tvl1.useInitialFlow = cmd.get<bool>("tvl1-use-initial-flow");
 
     switch (type) {
         case 0:
@@ -163,6 +164,7 @@ int main( int argc, char *argv[] )
             std::cout << "- iterations: " << alg_tvl1.iterations << std::endl;
             std::cout << "- nscales: " << alg_tvl1.nscales << std::endl;
             std::cout << "- warps: " << alg_tvl1.warps << std::endl;
+            std::cout << "- use_initial_flow: " << alg_tvl1.useInitialFlow << std::endl;
             break;
     }
 
@@ -211,19 +213,38 @@ int main( int argc, char *argv[] )
 
         frame_queue.push(resized_frame.clone());
     }
+    cv::Size frame_size = cv::Size(width, height);
     DEBUG_MSG("Queue filled");
     assert(frame_queue.size() == ((size_t) dilation));
     // len(frame_queue) == dilation
 
     unsigned int flow_index = 0;  // this is represents the position at which we *can* compute a flow field, although we don't
                          // always compute a flow field if temporal downsampling via a stride is specified.
+
+    unsigned int dtype;
+    switch (type) {
+        case 0:
+            // Brox
+            dtype = CV_32FC1;
+            break;
+        case 1:
+            // TVL1
+            dtype = CV_8UC1;
+            break;
+    }
+    GpuMat frame0GPU(frame_size, dtype);
+    GpuMat frame1GPU(frame_size, dtype);
+    GpuMat uGPU(frame_size, CV_32FC1);
+    GpuMat vGPU(frame_size, CV_32FC1);
+
     cap >> current_frame;
     frame_index++;
+
     while (!current_frame.empty()){
         DEBUG_MSG("Waiting on cap");
         DEBUG_MSG("Got frame " << frame_index);
         resized_frame = cv::Mat(Size(width, height), CV_8UC3);
-        cv::resize(current_frame, resized_frame, cv::Size(width, height), 0, 0, INTER_CUBIC);
+        cv::resize(current_frame, resized_frame, frame_size, 0, 0, INTER_CUBIC);
 
         DEBUG_MSG("Push frame " << frame_index);
         frame_queue.push(resized_frame.clone());
@@ -236,12 +257,12 @@ int main( int argc, char *argv[] )
 
         if (flow_index % stride == 0) {
             // Allocate memory for the images
-            flow_rgb = cv::Mat(Size(width, height), CV_8UC3);
-            motion_flow = cv::Mat(Size(width, height), CV_8UC3);
-            frame0 = cv::Mat(Size(width, height), CV_8UC1);
-            frame1 = cv::Mat(Size(width, height), CV_8UC1);
-            frame0_32 = cv::Mat(Size(width, height), CV_32FC1);
-            frame1_32 = cv::Mat(Size(width, height), CV_32FC1);
+            flow_rgb = cv::Mat(frame_size, CV_8UC3);
+            motion_flow = cv::Mat(frame_size, CV_8UC3);
+            frame0 = cv::Mat(frame_size, CV_8UC1);
+            frame1 = cv::Mat(frame_size, CV_8UC1);
+            frame0_32 = cv::Mat(frame_size, CV_32FC1);
+            frame1_32 = cv::Mat(frame_size, CV_32FC1);
 
             // Convert the image to grey and float
             cvtColor(resized_frame, frame1, CV_BGR2GRAY);
