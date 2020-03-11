@@ -1,4 +1,4 @@
-FROM willprice/opencv2-cuda8 
+FROM willprice/opencv4:cuda-8.0-cudnn5
 RUN mkdir -p /src /input /output
 
 VOLUME /input
