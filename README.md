@@ -32,7 +32,7 @@ We support running via docker and singularity.
   ```
 * Dump out frames from the video you wish to compute flow for:
   ```console
-  $ mkdir my_video; ffmpeg -i my_video.mp4 my_video/img_%06d.jpg
+  $ mkdir my_video; ffmpeg -i my_video.mp4 -qscale 3 my_video/img_%06d.jpg
   ```
 * Compute the flow using `furnari-flow`:
   ```console
