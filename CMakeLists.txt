@@ -9,6 +9,10 @@ message("-- OPENCV include:   " ${OpenCV_INCLUDE_DIRS})
 message("-- OPENCV libs dir:  " ${OpenCV_LIB_DIR})
 message("-- OPENCV libs:   " ${OpenCV_LIBS} )
 
+set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
 INCLUDE_DIRECTORIES(${OpenCV_INCLUDE_DIRS})
 LINK_DIRECTORIES(${OpenCV_LIB_DIR})
 
