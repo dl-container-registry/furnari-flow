@@ -18,19 +18,16 @@
 #include <vector>
 #include <cmath>
 #include <iostream>
-#include <fstream>
-#include <ctime>
 #include <queue>
 
 #include <opencv2/core/core.hpp>
-#include "opencv2/video/tracking.hpp"
 #include "opencv2/imgproc/imgproc.hpp"
 #include "opencv2/highgui/highgui.hpp"
-#include "opencv2/gpu/gpu.hpp"
+#include "opencv2/cudaoptflow.hpp"
 
 using namespace std;
 using namespace cv;
-using namespace cv::gpu;
+using namespace cv::cuda;
 
 float MIN_SZ = 256;
 float bound = 20;
@@ -56,9 +53,6 @@ static void convertFlowToImage(const Mat &flow_in, Mat &flow_out,
 int main( int argc, char *argv[] )
 {
     Mat current_frame, resized_frame;
-    Mat frame0_rgb_, frame1_rgb_, frame0_rgb, frame1_rgb, frame0, frame1, rgb_out;
-    Mat frame0_32, frame1_32, imgU, imgV;
-    Mat motion_flow, flow_rgb;
 
     std::string input_folder, img_format, flow_format; //input video file name
     int gpuID = 0,
@@ -67,66 +61,72 @@ int main( int argc, char *argv[] )
         dilation = 1;
 
     const char* keys = {
-                "{ h                    | help                   | false | print help message }"
-                "{ g                    | gpuID                  |  0    | use this gpu}"
-                "{ f                    | type                   |  1    | use this flow method [0:Brox, 1:TVL1]}"
-                "{ s                    | stride                 |  1    | temporal stride (this subsamples the video)}"
-                "{ d                    | dilation               |  1    | temporal dilation (1: use neighbouring frames, 2: skip one)}"
-                "{ b                    | bound                  |  20   | maximum optical flow for clipping}"
-                "{ z                    | size                   |  256  | minimum output size}"
-                "{ tvl1_epilson         | tvl1-epsilon           | 0.01  | TVL1 epsilon parameter}"
-                "{ tvl1_lambda          | tvl1-lambda            | 0.15  | TVL1 lambda parameter}"
-                "{ tvl1_tau             | tvl1-tau               | 0.25  | TVL1 tau parameter}"
-                "{ tvl1_theta           | tvl1-theta             | 0.3   | TVL1 tau parameter}"
-                "{ tvl1_iterations      | tvl1-iterations        | 300   | TVL1 number of iterations}"
-                "{ tvl1_nscales         | tvl1-nscales           | 5     | TVL1 number of scales}"
-                "{ tvl1_warps           | tvl1-warps             | 5     | TVL1 number of warps}"
-                "{ tvl1_use_initial_flow| tvl1-use-initial-flow  | false | Whether to reuse flow fields between frames}"
-                "{ brox_alpha           | brox-alpha             | 0.197 | Brox alpha parameter}"
-                "{ brox_gamma           | brox-gamma             | 50    | Brox gamma parameter}"
-                "{ brox_scale_factor    | brox-scale-factor      | 0.8   | Brox scale factor parameter}"
-                "{ brox_inner_iters     | brox-inner-iterations  | 10    | Brox number of inner iterations}"
-                "{ brox_outer_iters     | brox-outer-iterations  | 77    | Brox number of outer iterations}"
-                "{ brox_solver_iters    | brox-solver-iterations | 10    | Brox number of solver iterations}"
+                "{ @input_dir             | <none>            | Path to input directory containing frames }"
+                "{ @frame_template        | frame_%010d.jpg   | Printf template for input frame filename }"
+                "{ @flow_template         | flow_%s_%010d.jpg | Printf template for output flow frame filename }"
+
+                "{ h help                 |                   | Print help message }"
+                "{ g gpu-id               | 0                 | Use this GPU }"
+                "{ f type                 | 1                 | Flow method [0:Brox, 1:TVL1] }"
+                "{ s stride               | 1                 | Temporal stride (this subsamples the video) }"
+                "{ d dilation             | 1                 | Temporal dilation (1: use neighbouring frames, 2: skip one) }"
+                "{ b bound                | 20                | maximum optical flow for clipping }"
+                "{ z size                 | 256               | Minimum output size }"
+
+                "{ tvl1-epsilon           | 0.01              | TVL1 epsilon parameter }"
+                "{ tvl1-lambda            | 0.15              | TVL1 lambda parameter }"
+                "{ tvl1-tau               | 0.25              | TVL1 tau parameter }"
+                "{ tvl1-theta             | 0.3               | TVL1 tau parameter }"
+                "{ tvl1-gamma             | 0.0               | TVL1 (u-v)^2 tightness parameter }"
+                "{ tvl1-iterations        | 300               | TVL1 number of iterations }"
+                "{ tvl1-scale-step        | 0.8               | TVL1 pyramid scale factor }"
+                "{ tvl1-nscales           | 5                 | TVL1 number of scales }"
+                "{ tvl1-warps             | 5                 | TVL1 number of warps }"
+                "{ tvl1-use-initial-flow  | false             | Whether to reuse flow fields between frames }"
+
+                "{ brox-alpha             | 0.197             | Brox smoothness parameter }"
+                "{ brox-gamma             | 50                | Brox gradient constancy parameter }"
+                "{ brox-scale-factor      | 0.8               | Brox pyramid scale factor }"
+                "{ brox-inner-iterations  | 10                | Brox number of inner iterations }"
+                "{ brox-outer-iterations  | 77                | Brox number of outer iterations }"
+                "{ brox-solver-iterations | 10                | Brox number of solver iterations }"
     };
 
     CommandLineParser cmd(argc, argv, keys);
 
-    if (cmd.get<bool>("help"))
+    if (cmd.has("help"))
     {
         cout << "Usage: compute_flow input_folder img_format flow_format [options]" << endl;
         cout << "Available options:" << endl;
-        cmd.printParams();
+        cmd.printMessage();
         cout << "Example: compute_flow P01_01 img_%07d.jpg flow_%s_%07d.jpg [options]" << endl;
         return 0;
     }
 
-    if (argc > 2) {
+    if (cmd.check()) {
         input_folder = argv[1];
         img_format = argv[2];
         flow_format = argv[3];
 
-        gpuID = cmd.get<int>("gpuID");
+        gpuID = cmd.get<int>("gpu-id");
         type = cmd.get<int>("type");
         stride = cmd.get<int>("stride");
         dilation = cmd.get<unsigned int>("dilation");
         bound = cmd.get<float>("bound");
         MIN_SZ = cmd.get<int>("size");
     } else {
-        cout << "Not enough parameters!"<<endl;
-        cout << "Usage: compute_flow input_folder img_formati flow_format [options]" << endl;
-        cout << "Available options:" << endl;
-        cmd.printParams();
+        cmd.printErrors();
         cout << "Example: compute_flow P01_01 img_%07d.jpg flow_%s_%07d.jpg [options]" << endl;
-        return 0;
+        cmd.printMessage();
+        return -1;
     }
-    int gpuCounts = cv::gpu::getCudaEnabledDeviceCount();
+    int gpuCounts = getCudaEnabledDeviceCount();
     cout << "Number of GPUs present " << gpuCounts << endl;
 
-    cv::gpu::setDevice(gpuID);
-    cv::gpu::printShortCudaDeviceInfo(cv::gpu::getDevice());
+    setDevice(gpuID);
+    printShortCudaDeviceInfo(getDevice());
 
-    cv::gpu::BroxOpticalFlow dflow(
+    const Ptr<BroxOpticalFlow> &alg_brox = BroxOpticalFlow::create(
             cmd.get<float>("brox-alpha"),
             cmd.get<int>("brox-gamma"),
             cmd.get<float>("brox-scale-factor"),
@@ -134,42 +134,44 @@ int main( int argc, char *argv[] )
             cmd.get<int>("brox-outer-iterations"),
             cmd.get<int>("brox-solver-iterations")
     );
-    cv::gpu::OpticalFlowDual_TVL1_GPU alg_tvl1;
-
-    alg_tvl1.epsilon = cmd.get<float>("tvl1-epsilon");
-    alg_tvl1.lambda = cmd.get<float>("tvl1-lambda");
-    alg_tvl1.tau = cmd.get<float>("tvl1-tau");
-    alg_tvl1.theta = cmd.get<float>("tvl1-theta");
-    alg_tvl1.iterations = cmd.get<int>("tvl1-iterations");
-    alg_tvl1.nscales = cmd.get<int>("tvl1-nscales");
-    alg_tvl1.warps = cmd.get<int>("tvl1-warps");
-    alg_tvl1.useInitialFlow = cmd.get<bool>("tvl1-use-initial-flow");
+    const Ptr<OpticalFlowDual_TVL1> &alg_tvl1 = OpticalFlowDual_TVL1::create(
+            cmd.get<float>("tvl1-tau"),
+            cmd.get<float>("tvl1-lambda"),
+            cmd.get<float>("tvl1-theta"),
+            cmd.get<int>("tvl1-nscales"),
+            cmd.get<int>("tvl1-warps"),
+            cmd.get<float>("tvl1-epsilon"),
+            cmd.get<int>("tvl1-iterations"),
+            cmd.get<float>("tvl1-scale-step"),
+            cmd.get<float>("tvl1-gamma"),
+            cmd.get<bool>("tvl1-use-initial-flow")
+    );
 
     switch (type) {
         case 0:
             std::cout << "Brox parameters" << std::endl;
-            std::cout << "- alpha: " << dflow.alpha << std::endl;
-            std::cout << "- gamma: " << dflow.gamma << std::endl;
-            std::cout << "- scale_factor: " << dflow.scale_factor << std::endl;
-            std::cout << "- inner_iterations: " << dflow.inner_iterations << std::endl;
-            std::cout << "- outer_iterations: " << dflow.outer_iterations << std::endl;
-            std::cout << "- solver_iterations: " << dflow.solver_iterations << std::endl;
+            std::cout << "- alpha: " << alg_brox->getFlowSmoothness() << std::endl;
+            std::cout << "- gamma: " << alg_brox->getGradientConstancyImportance() << std::endl;
+            std::cout << "- scale_factor: " << alg_brox->getPyramidScaleFactor() << std::endl;
+            std::cout << "- inner_iterations: " << alg_brox->getInnerIterations() << std::endl;
+            std::cout << "- outer_iterations: " << alg_brox->getOuterIterations() << std::endl;
+            std::cout << "- solver_iterations: " << alg_brox->getSolverIterations() << std::endl;
             break;
         case 1:
             std::cout << "TVL1 parameters" << std::endl;
-            std::cout << "- epsilon: " << alg_tvl1.epsilon << std::endl;
-            std::cout << "- lambda: " << alg_tvl1.lambda << std::endl;
-            std::cout << "- tau: " << alg_tvl1.tau << std::endl;
-            std::cout << "- theta: " << alg_tvl1.theta << std::endl;
-            std::cout << "- iterations: " << alg_tvl1.iterations << std::endl;
-            std::cout << "- nscales: " << alg_tvl1.nscales << std::endl;
-            std::cout << "- warps: " << alg_tvl1.warps << std::endl;
-            std::cout << "- use_initial_flow: " << alg_tvl1.useInitialFlow << std::endl;
+            std::cout << "- epsilon: " << alg_tvl1->getEpsilon() << std::endl;
+            std::cout << "- lambda: " << alg_tvl1->getLambda() << std::endl;
+            std::cout << "- tau: " << alg_tvl1->getTau() << std::endl;
+            std::cout << "- theta: " << alg_tvl1->getTheta() << std::endl;
+            std::cout << "- iterations: " << alg_tvl1->getNumIterations() << std::endl;
+            std::cout << "- nscales: " << alg_tvl1->getNumScales() << std::endl;
+            std::cout << "- warps: " << alg_tvl1->getNumWarps() << std::endl;
+            std::cout << "- use_initial_flow: " << alg_tvl1->getUseInitialFlow() << std::endl;
             break;
     }
 
 
-    std::queue<cv::Mat> frame_queue;
+    std::queue<Mat> frame_queue;
 
     VideoCapture cap;
     try {
@@ -207,13 +209,13 @@ int main( int argc, char *argv[] )
         height = std::floor(current_frame.rows * factor);
         height -= height%2;
 
-        resized_frame = cv::Mat(Size(width, height), CV_8UC3);
+        resized_frame = Mat(Size(width, height), CV_8UC3);
 
-        cv::resize(current_frame, resized_frame, cv::Size(width, height), 0, 0, INTER_CUBIC);
+        resize(current_frame, resized_frame, Size(width, height), 0, 0, INTER_CUBIC);
 
         frame_queue.push(resized_frame.clone());
     }
-    cv::Size frame_size = cv::Size(width, height);
+    Size frame_size = Size(width, height);
     DEBUG_MSG("Queue filled");
     assert(frame_queue.size() == ((size_t) dilation));
     // len(frame_queue) == dilation
@@ -221,21 +223,19 @@ int main( int argc, char *argv[] )
     unsigned int flow_index = 0;  // this is represents the position at which we *can* compute a flow field, although we don't
                          // always compute a flow field if temporal downsampling via a stride is specified.
 
-    unsigned int dtype;
-    switch (type) {
-        case 0:
-            // Brox
-            dtype = CV_32FC1;
-            break;
-        case 1:
-            // TVL1
-            dtype = CV_8UC1;
-            break;
-    }
-    GpuMat frame0GPU(frame_size, dtype);
-    GpuMat frame1GPU(frame_size, dtype);
-    GpuMat uGPU(frame_size, CV_32FC1);
-    GpuMat vGPU(frame_size, CV_32FC1);
+    Mat frame0_rgb, frame1_rgb;
+    Mat frame0 = Mat(frame_size, CV_8UC1);
+    Mat frame1 = Mat(frame_size, CV_8UC1);
+    Mat frame0_32 = Mat(frame_size, CV_32FC1);
+    Mat frame1_32 = Mat(frame_size, CV_32FC1);
+
+    GpuMat frame0GPU(frame_size, CV_32FC1);
+    GpuMat frame1GPU(frame_size, CV_8UC1);
+    GpuMat flowGPU(frame_size, CV_8UC1);
+    Mat flowCPU(frame_size, CV_32FC2);
+    Mat flow_channels[2];
+    Mat img_u(frame_size, CV_8UC1);
+    Mat img_v(frame_size, CV_8UC1);
 
     cap >> current_frame;
     frame_index++;
@@ -243,8 +243,8 @@ int main( int argc, char *argv[] )
     while (!current_frame.empty()){
         DEBUG_MSG("Waiting on cap");
         DEBUG_MSG("Got frame " << frame_index);
-        resized_frame = cv::Mat(Size(width, height), CV_8UC3);
-        cv::resize(current_frame, resized_frame, frame_size, 0, 0, INTER_CUBIC);
+        resized_frame = Mat(Size(width, height), CV_8UC3);
+        resize(current_frame, resized_frame, frame_size, 0, 0, INTER_CUBIC);
 
         DEBUG_MSG("Push frame " << frame_index);
         frame_queue.push(resized_frame.clone());
@@ -256,59 +256,41 @@ int main( int argc, char *argv[] )
         DEBUG_MSG("Popped frame " << frame_index - dilation);
 
         if (flow_index % stride == 0) {
-            // Allocate memory for the images
-            flow_rgb = cv::Mat(frame_size, CV_8UC3);
-            motion_flow = cv::Mat(frame_size, CV_8UC3);
-            frame0 = cv::Mat(frame_size, CV_8UC1);
-            frame1 = cv::Mat(frame_size, CV_8UC1);
-            frame0_32 = cv::Mat(frame_size, CV_32FC1);
-            frame1_32 = cv::Mat(frame_size, CV_32FC1);
-
             // Convert the image to grey and float
-            cvtColor(resized_frame, frame1, CV_BGR2GRAY);
-            frame1.convertTo(frame1_32, CV_32FC1, 1.0 / 255.0, 0);
+            cvtColor(frame0_rgb, frame0, COLOR_BGR2GRAY);
+            //frame0.convertTo(frame0_32, CV_32FC1, 1.0 / 255.0, 0);
 
-            cvtColor(frame0_rgb, frame0, CV_BGR2GRAY);
-            frame0.convertTo(frame0_32, CV_32FC1, 1.0 / 255.0, 0);
+            cvtColor(resized_frame, frame1, COLOR_BGR2GRAY);
+            //frame1.convertTo(frame1_32, CV_32FC1, 1.0 / 255.0, 0);
 
+
+            DEBUG_MSG("Started frame upload");
+            frame1GPU.upload(frame1);
+            frame0GPU.upload(frame0);
+            DEBUG_MSG("Completed frame upload");
+            DEBUG_MSG("Started flow computation");
             switch (type) {
                 case 0:
-                    frame1GPU.upload(frame1_32);
-                    frame0GPU.upload(frame0_32);
-                    dflow(frame0GPU, frame1GPU, uGPU, vGPU);
+                    alg_brox->calc(frame0GPU, frame1GPU, flowGPU);
                 case 1:
-                    DEBUG_MSG("Started frame upload");
-                    frame1GPU.upload(frame1);
-                    frame0GPU.upload(frame0);
-                    DEBUG_MSG("Completed frame upload");
-                    DEBUG_MSG("Started flow computation");
-                    alg_tvl1(frame0GPU, frame1GPU, uGPU, vGPU);
-                    DEBUG_MSG("Completed flow computation");
+                    alg_tvl1->calc(frame0GPU, frame1GPU, flowGPU);
             }
-            DEBUG_MSG("Complete flow computation");
-
-            uGPU.download(imgU);
-            vGPU.download(imgV);
+            DEBUG_MSG("Completed flow computation");
+            flowGPU.download(flowCPU);
             DEBUG_MSG("Downloaded flow");
 
-            float min_u_f = -bound;
-            float max_u_f = bound;
+            split(flowCPU, flow_channels);
 
-            float min_v_f = -bound;
-            float max_v_f = bound;
 
-            cv::Mat img_u(imgU.rows, imgU.cols, CV_8UC1);
-            cv::Mat img_v(imgV.rows, imgV.cols, CV_8UC1);
-
-            convertFlowToImage(imgU, img_u, min_u_f, max_u_f);
-            convertFlowToImage(imgV, img_v, min_v_f, max_v_f);
+            convertFlowToImage(flow_channels[0], img_u, -bound, bound);
+            convertFlowToImage(flow_channels[1], img_v, -bound, bound);
 
             char *filename_x = new char[255];
             char *filename_y = new char[255];
             sprintf(filename_x, flow_format.c_str(), "x", flow_frame_number);
             sprintf(filename_y, flow_format.c_str(), "y", flow_frame_number);
-            cv::imwrite(input_folder + "/" + string(filename_x), img_u);
-            cv::imwrite(input_folder + "/" + string(filename_y), img_v);
+            imwrite(input_folder + "/" + string(filename_x), img_u);
+            imwrite(input_folder + "/" + string(filename_y), img_v);
             flow_frame_number++;
         }
         flow_index++;
@@ -316,7 +298,7 @@ int main( int argc, char *argv[] )
 
         cap >> current_frame;
         frame_index++;
-    }
+}
 
     cout << endl;
     return 0;
