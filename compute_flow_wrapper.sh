@@ -31,13 +31,8 @@ dim_map[x]=u
 dim_map[y]=v
 for dim in x y; do
     for f in "$IN/flow_${dim}_"*.jpg; do
-        mv "$f" "$OUT/${dim_map[$dim]}/"
+        filename="${f##*/}"
+        mv "$f" "$OUT/${dim_map[$dim]}/${filename##flow_?_}"
     done
 done
 
-shopt -u nullglob
-for dir in u v; do
-    pushd "$OUT/$dir" >/dev/null
-    rename 's/flow_._//g' *
-    popd >/dev/null
-done
