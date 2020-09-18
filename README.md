@@ -37,7 +37,7 @@ We support running via docker and singularity.
 * Compute the flow using `furnari-flow`:
   ```console
   $ mkdir my_video_flow
-  $ docker 
+  $ docker run \
       --runtime=nvidia \
       --rm \
       --mount "type=bind,source=$PWD/my_video,target=/input" \
